@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/calendar_event.dart';
 import '../models/todo.dart';
-import '../theme/app_theme.dart';
-import '../theme/finance_colors.dart';
 import '../widgets/add_event_dialog.dart';
 import '../widgets/add_todo_dialog.dart';
 import '../widgets/finance/purchase_dialog.dart';
-import '../widgets/todo_tile.dart';
 import 'day_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -192,87 +189,139 @@ class _HomeScreenState extends State<HomeScreen> {
     await loadDashboard();
   }
 
+  // Alle Inhalte kommen weiterhin live aus SQLite. Die Pixel-Art ist nur
+  // Dekoration: Rahmen skalieren, Icons bleiben unverzerrt.
+  static const _ink = Color(0xFF4A2E1D);
+  static const _mutedInk = Color(0xFF76543C);
+  static const _gold = Color(0xFFBF8A42);
+  static const _paper = Color(0xFFF3DEB2);
+  static const _darkGreen = Color(0xFF345D35);
+
+  Widget _sprite(String file, {double size = 42}) => Image.asset(
+    'assets/images/questbook/ui/$file.png',
+    width: size, height: size,
+    fit: BoxFit.contain,
+    filterQuality: FilterQuality.none,
+  );
+
+  // Kein Vollbild-Stretching der gemalten Rahmen: dynamisch wachsende
+  // Pergamentfläche mit einzeln positionierten Pixel-Art-Verzierungen.
+  Widget _framed({required Widget child, EdgeInsets padding =
+      const EdgeInsets.fromLTRB(17, 17, 17, 18)}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8E8C7),
+        border: Border.all(color: const Color(0xFF704525), width: 3),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(color: Color(0x44352213), offset: Offset(2, 3)),
+        ],
+      ),
+      child: Stack(children: [
+        Padding(padding: padding, child: child),
+        Positioned(top: 0, left: 0,
+          child: IgnorePointer(child: _corner('scroll', 19))),
+        Positioned(top: 0, right: 0,
+          child: IgnorePointer(child: _corner('star', 19))),
+      ]),
+    );
+  }
+
+  Widget _corner(String file, double size) => Opacity(
+    opacity: 0.75, child: _sprite(file, size: size));
+
+  String _dateLabel(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}.'
+      '${date.month.toString().padLeft(2, '0')}.'
+      '${date.year}  '
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+
+  String _iconForSection(String title) {
+    if (title.contains('Schatzkammer')) return 'coins';
+    if (title.contains('Kalender')) return 'calendar';
+    if (title.contains('offene')) return 'warning';
+    return 'scroll';
+  }
+
   Widget sectionCard({
     required String title,
     required IconData icon,
     required Widget child,
     VoidCallback? onOpen,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(children: [
-              Icon(icon, color: scheme.primary),
-              const SizedBox(width: 8),
-              Expanded(child: Text(title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              )),
-              if (onOpen != null) IconButton(
-                tooltip: 'Bereich öffnen',
-                onPressed: onOpen,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            child,
-          ],
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: _framed(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            _sprite(_iconForSection(title), size: 43),
+            const SizedBox(width: 6),
+            Expanded(child: Text(title,
+              style: const TextStyle(fontSize: 16, height: 1.2,
+                  fontWeight: FontWeight.w800, color: _ink))),
+            if (onOpen != null) IconButton(
+              tooltip: 'Bereich öffnen',
+              onPressed: onOpen,
+              icon: const Icon(Icons.chevron_right, color: _ink),
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          const Divider(height: 13, color: _gold),
+          child,
+        ],
+      )),
     );
   }
 
-  Widget summaryTile(IconData icon, String label, int count, Color color) {
-    return Expanded(
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 3),
-          child: Column(children: [
-            Icon(icon, color: color),
-            const SizedBox(height: 4),
-            Text('$count', style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            )),
-            Text(label, textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall),
-          ]),
-        ),
+  Widget summaryTile(String sprite, String label, int count) {
+    return Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5E5C4),
+        border: Border.all(color: _gold, width: 2),
+        borderRadius: BorderRadius.circular(9),
       ),
-    );
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _sprite(sprite, size: 37),
+        Text('$count', style: const TextStyle(fontSize: 22,
+          fontWeight: FontWeight.w900, color: _ink)),
+        FittedBox(fit: BoxFit.scaleDown, child: Text(label,
+          maxLines: 1, style: const TextStyle(fontSize: 11,
+          fontWeight: FontWeight.w700, color: _mutedInk))),
+      ]),
+    ));
   }
 
   Widget quickActions() {
-    Widget action(String label, IconData icon, VoidCallback handler) {
-      return OutlinedButton.icon(
-        onPressed: handler,
-        icon: Icon(icon, size: 19),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+    Widget action(String text, String sprite, VoidCallback onTap) =>
+      Material(color: _darkGreen, borderRadius: BorderRadius.circular(9),
+        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(9),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border.all(color: _gold, width: 2),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              _sprite(sprite, size: 29),
+              const SizedBox(width: 7),
+              Text(text, style: const TextStyle(color: Color(0xFFFFF0C8),
+                fontWeight: FontWeight.bold)),
+            ]),
+          ),
         ),
       );
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        action('Neue Quest', Icons.add_task, addTodo),
-        action('Neuer Termin', Icons.event_available_outlined, addEvent),
-        action('Neuer Kauf', Icons.shopping_bag_outlined, addPurchase),
-      ],
-    );
+    return Wrap(spacing: 8, runSpacing: 8, children: [
+      action('Neue Quest', 'scroll', addTodo),
+      action('Neuer Termin', 'calendar', addEvent),
+      action('Neuer Kauf', 'pouch', addPurchase),
+    ]);
   }
 
   Widget financeCard() {
-    final scheme = Theme.of(context).colorScheme;
     final data = finance;
     if (data == null) return const SizedBox.shrink();
     final budget = data['budget'] as int;
@@ -281,75 +330,152 @@ class _HomeScreenState extends State<HomeScreen> {
     final remaining = data['remaining'] as int;
     final used = fixed + spent;
     final fraction = budget > 0 ? (used / budget).clamp(0.0, 1.0) : 0.0;
-    final percent = budget > 0 ? (100 * used / budget).toStringAsFixed(1).replaceAll('.', ',') : null;
+    final percent = budget > 0
+      ? (100 * used / budget).toStringAsFixed(1).replaceAll('.', ',')
+      : null;
+    final negative = remaining < 0;
 
     return sectionCard(
       title: 'Deine Schatzkammer',
       icon: Icons.account_balance_wallet_outlined,
       onOpen: widget.onOpenFinance,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Verfügbares Monatsbudget',
-            style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 4),
-          Text(euros(remaining),
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: remaining < 0 ? scheme.error : scheme.primary,
-            )),
-          const SizedBox(height: 12),
-          LinearProgressIndicator(
-            value: fraction,
-            minHeight: 12,
-            borderRadius: BorderRadius.circular(7),
-            color: remaining < 0 ? scheme.error : scheme.primary,
-            backgroundColor: scheme.surfaceContainerHighest,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Verfügbares Monatsbudget', style: TextStyle(color: _mutedInk)),
+        const SizedBox(height: 4),
+        Text(euros(remaining), style: const TextStyle(fontSize: 26,
+          fontWeight: FontWeight.w900, color: _darkGreen).copyWith(
+          color: negative ? const Color(0xFFAF4D38) : _darkGreen)),
+        const SizedBox(height: 12),
+        // Der Füllstand ist live und wird NICHT aus einem statischen PNG genommen.
+        ClipRRect(borderRadius: BorderRadius.circular(4),
+          child: Container(
+            decoration: BoxDecoration(border: Border.all(
+              color: const Color(0xFF875A31), width: 2)),
+            child: LinearProgressIndicator(
+              value: fraction, minHeight: 13,
+              color: negative ? const Color(0xFFB74B39) : const Color(0xFF4B8A42),
+              backgroundColor: const Color(0xFFC7A77C),
+            ),
           ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: Text(
-              percent == null ? 'Kein Budget festgelegt' : '$percent % verbraucht',
-              style: Theme.of(context).textTheme.bodySmall,
-            )),
-            Text('Budget: ${euros(budget)}',
-              style: Theme.of(context).textTheme.bodySmall),
-          ]),
-          const Divider(height: 24),
-          Row(children: [
-            const Expanded(child: Text('Fixkosten')),
-            Text(euros(fixed)),
-          ]),
-          const SizedBox(height: 5),
-          Row(children: [
-            const Expanded(child: Text('Käufe diesen Monat')),
-            Text(euros(spent)),
-          ]),
-          if (remaining < 0) Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text('Dein Monatsbudget ist überschritten.',
-              style: TextStyle(color: scheme.error)),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 4, children: [
+          Text(percent == null ? 'Kein Budget festgelegt' : '$percent % verbraucht',
+              style: const TextStyle(color: _mutedInk)),
+          Text('Budget: ${euros(budget)}', style: const TextStyle(color: _mutedInk)),
+        ]),
+        const Divider(height: 24, color: _gold),
+        Row(children: [const Expanded(child: Text('Fixkosten')),
+          Flexible(child: Text(euros(fixed), textAlign: TextAlign.end))]),
+        const SizedBox(height: 6),
+        Row(children: [const Expanded(child: Text('Käufe diesen Monat')),
+          Flexible(child: Text(euros(spent), textAlign: TextAlign.end))]),
+        if (negative) const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text('Dein Monatsbudget ist überschritten.',
+            style: TextStyle(color: Color(0xFFAF4D38))),
+        ),
+      ]),
     );
   }
 
   Widget todoList(List<Todo> items, String emptyText) {
-    if (items.isEmpty) return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(emptyText),
-    );
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Text(emptyText, style: const TextStyle(color: _mutedInk)),
+      );
+    }
     return Column(
       children: items.map((todo) {
         final key = 'todo:${todo.id}';
-        return TodoTile(
-          key: ValueKey(key),
-          todo: todo,
-          isExpanded: expandedItemKey == key,
-          onTap: () => toggleExpanded(key),
-          onCompletedChanged: (done) => toggleTodo(todo, done),
-          onDelete: () => confirmDeleteTodo(todo),
+        final expanded = expandedItemKey == key;
+        final overdue = todo.dueDate != null &&
+            todo.dueDate!.isBefore(DateTime.now()) && !todo.isCompleted;
+        final accent = overdue
+            ? const Color(0xFFAE4B38)
+            : todo.priority == 3
+                ? const Color(0xFFA45839)
+                : todo.priority == 2
+                    ? const Color(0xFFA67B36)
+                    : const Color(0xFF467343);
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF1D5),
+            border: Border.all(color: const Color(0xFF9C6C3C), width: 2),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Column(children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(7),
+              onTap: () => toggleExpanded(key),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 9, 8, 9),
+                child: Row(children: [
+                  SizedBox(width: 42, height: 46,
+                    child: Center(child: Checkbox(
+                      value: todo.isCompleted,
+                      activeColor: _darkGreen,
+                      onChanged: (value) =>
+                          toggleTodo(todo, value ?? false),
+                    ))),
+                  const SizedBox(width: 4),
+                  _sprite(overdue ? 'warning' : 'scroll', size: 33),
+                  const SizedBox(width: 8),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(todo.title, softWrap: true,
+                        style: TextStyle(
+                          color: _ink, fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          decoration: todo.isCompleted
+                              ? TextDecoration.lineThrough : null,
+                        )),
+                      if (todo.dueDate != null) ...[
+                        const SizedBox(height: 4),
+                        Text(_dateLabel(todo.dueDate!),
+                          style: TextStyle(fontSize: 11, color: accent)),
+                      ],
+                    ],
+                  )),
+                  const SizedBox(width: 2),
+                  Icon(expanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down, color: _ink),
+                ]),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              child: expanded
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Divider(color: _gold),
+                          Text(todo.description.isEmpty
+                              ? 'Keine Beschreibung vorhanden.'
+                              : todo.description,
+                              style: const TextStyle(color: _ink)),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: 'Quest löschen',
+                              onPressed: () => confirmDeleteTodo(todo),
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Color(0xFF97452E)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ]),
         );
       }).toList(),
     );
@@ -358,55 +484,51 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget eventList() {
     if (events.isEmpty) return const Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
-      child: Text('Heute stehen keine Termine an.'),
+      child: Text('Heute stehen keine Termine an.',
+        style: TextStyle(color: _mutedInk)),
     );
-
-    // Wiederholungen werden bereits durch getEventsForDay aufgelöst.
-    // Änderungen und Löschen einzelner Wiederholungen erfolgen im DayScreen.
+    // getEventsForDay löst wiederkehrende Termine bereits auf.
     return Column(children: events.map((event) {
       final key = 'event:${event.id}:${CalendarEvent.dateKey(event.occurrenceDate ?? event.date)}';
       final expanded = expandedItemKey == key;
-      final scheme = Theme.of(context).colorScheme;
       return Container(
-        margin: const EdgeInsets.only(bottom: 9),
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: TodoTileStyle.backgroundColor(context),
-          borderRadius: BorderRadius.circular(TodoTileStyle.borderRadius),
-          border: Border.all(
-            color: TodoTileStyle.borderColor(context),
-            width: TodoTileStyle.borderWidth,
-          ),
+          color: const Color(0xFFF9EACD),
+          border: Border.all(color: const Color(0xFFB58D55), width: 2),
+          borderRadius: BorderRadius.circular(9),
         ),
         child: Column(children: [
           ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
             onTap: () => toggleExpanded(key),
-            leading: Icon(event.isAllDay ? Icons.wb_sunny_outlined : Icons.event_outlined,
-              color: scheme.primary),
-            title: Text(event.title),
-            subtitle: Text(event.timeLabel),
-            trailing: Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+            leading: _sprite('calendar', size: 38),
+            title: Text(event.title, style: const TextStyle(color: _ink,
+              fontWeight: FontWeight.bold)),
+            subtitle: Text(event.timeLabel, style: const TextStyle(color: _mutedInk)),
+            trailing: Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              color: _ink),
           ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
+          AnimatedSize(duration: const Duration(milliseconds: 200),
             child: expanded ? Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Divider(),
+                const Divider(color: _gold),
                 if (event.location.isNotEmpty) Row(children: [
-                  const Icon(Icons.location_on_outlined, size: 18),
+                  const Icon(Icons.location_on_outlined, color: _ink, size: 18),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(event.location)),
+                  Expanded(child: Text(event.location,
+                    style: const TextStyle(color: _ink))),
                 ]),
                 if (event.description.isNotEmpty) Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(event.description),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
+                  child: Text(event.description,
+                    style: const TextStyle(color: _ink))),
+                Align(alignment: Alignment.centerRight,
                   child: TextButton.icon(
                     onPressed: openTodayCalendar,
                     icon: const Icon(Icons.edit_calendar_outlined),
-                    label: const Text('Im Tageskalender verwalten'),
+                    label: const Text('Im Tageskalender verwalten', softWrap: true),
                   ),
                 ),
               ]),
@@ -429,58 +551,67 @@ class _HomeScreenState extends State<HomeScreen> {
       ]),
     ));
 
-    final scheme = Theme.of(context).colorScheme;
-    final todayText = MaterialLocalizations.of(context).formatMediumDate(DateTime.now());
-    return RefreshIndicator(
-      onRefresh: loadDashboard,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(todayText, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-          )),
-          const SizedBox(height: 4),
-          Text('$greeting 🌻',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            )),
-          const SizedBox(height: 4),
-          const Text('Schauen wir, was heute in deinem Dorf ansteht.'),
-          const SizedBox(height: 18),
-          Text('Schnellaktionen', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          quickActions(),
-          const SizedBox(height: 18),
-          Row(children: [
-            summaryTile(Icons.checklist, 'Quests', todaysTodos.length, scheme.primary),
-            const SizedBox(width: 8),
-            summaryTile(Icons.warning_amber_rounded, 'Überfällig', overdueTodos.length, scheme.error),
-            const SizedBox(width: 8),
-            summaryTile(Icons.calendar_month, 'Termine', events.length, scheme.secondary),
-          ]),
-          const SizedBox(height: 16),
-          financeCard(),
-          if (overdueTodos.isNotEmpty) sectionCard(
-            title: 'Noch offene Quests',
-            icon: Icons.warning_amber_rounded,
-            onOpen: widget.onOpenTodos,
-            child: todoList(overdueTodos, ''),
+    final todayText = MaterialLocalizations.of(context)
+        .formatMediumDate(DateTime.now());
+    return Theme(
+      data: Theme.of(context).copyWith(
+        textTheme: Theme.of(context).textTheme.apply(
+          bodyColor: _ink, displayColor: _ink),
+        iconTheme: const IconThemeData(color: _ink),
+      ),
+      child: ColoredBox(color: _paper,
+        child: RefreshIndicator(
+          onRefresh: loadDashboard,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(17, 18, 17, 32),
+            children: [
+              Center(child: Text(todayText, style: const TextStyle(
+                color: _mutedInk, fontWeight: FontWeight.bold))),
+              const SizedBox(height: 7),
+              Center(child: Image.asset(
+                'assets/images/questbook/questbook_open.png',
+                height: 90, fit: BoxFit.contain,
+                filterQuality: FilterQuality.none,
+              )),
+              const SizedBox(height: 5),
+              Text('$greeting 🌻', style: const TextStyle(
+                fontSize: 25, color: _ink, fontWeight: FontWeight.w900)),
+              const Text('Schauen wir, was heute in deinem Dorf ansteht.',
+                style: TextStyle(color: _mutedInk)),
+              const SizedBox(height: 18),
+              const Text('Schnellaktionen', style: TextStyle(
+                fontSize: 17, color: _ink, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 9),
+              quickActions(),
+              const SizedBox(height: 16),
+              Row(children: [
+                summaryTile('scroll', 'Quests', todaysTodos.length),
+                const SizedBox(width: 6),
+                summaryTile('warning', 'Überfällig', overdueTodos.length),
+                const SizedBox(width: 6),
+                summaryTile('calendar', 'Termine', events.length),
+              ]),
+              const SizedBox(height: 18),
+              financeCard(),
+              if (overdueTodos.isNotEmpty) sectionCard(
+                title: 'Noch offene Quests', icon: Icons.warning_amber_rounded,
+                onOpen: widget.onOpenTodos,
+                child: todoList(overdueTodos, ''),
+              ),
+              sectionCard(
+                title: 'Deine heutigen Quests', icon: Icons.task_alt,
+                onOpen: widget.onOpenTodos,
+                child: todoList(todaysTodos,
+                  'Heute sind keine Aufgaben fällig. 🌿'),
+              ),
+              sectionCard(
+                title: 'Heute im Kalender', icon: Icons.calendar_month_outlined,
+                onOpen: openTodayCalendar, child: eventList(),
+              ),
+            ],
           ),
-          sectionCard(
-            title: 'Deine heutigen Quests',
-            icon: Icons.task_alt,
-            onOpen: widget.onOpenTodos,
-            child: todoList(todaysTodos, 'Heute sind keine Aufgaben fällig. 🌿'),
-          ),
-          sectionCard(
-            title: 'Heute im Kalender',
-            icon: Icons.calendar_month_outlined,
-            onOpen: openTodayCalendar,
-            child: eventList(),
-          ),
-          const SizedBox(height: 12),
-        ],
+        ),
       ),
     );
   }

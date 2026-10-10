@@ -79,6 +79,12 @@ flutter:
     - assets/images/city_day.png
     - assets/images/city_night.png
     - assets/images/village/
+    - assets/images/questbook/
+    - assets/images/questbook/ui/
+    - assets/images/village/buildings/guild/
+    - assets/images/village/buildings/announcement_board/
+    - assets/images/village/buildings/treasury/
+    - assets/images/village/buildings/home/
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

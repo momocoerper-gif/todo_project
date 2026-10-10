@@ -4,7 +4,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'screens/home_screen.dart';
 import 'screens/todo_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/settings_screen.dart';
@@ -145,10 +144,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   // Aktuell ausgewählter Screen
   int selectedIndex = 0;
-  int homeRefreshVersion = 0;
   int todoRefreshVersion = 0;
   int calendarRefreshVersion = 0;
   int financeRefreshVersion = 0;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // Titel der verschiedenen Screens
   final List<String> titles = const [
@@ -165,10 +165,6 @@ class _MainScreenState extends State<MainScreen> {
       selectedIndex = index;
 
       switch (index) {
-        case 0:
-          homeRefreshVersion++;
-          break;
-
         case 1:
           todoRefreshVersion++;
           break;
@@ -193,6 +189,7 @@ class _MainScreenState extends State<MainScreen> {
     // Screens
     final List<Widget> screens = [
       VillageScreen(
+        onOpenMenu: () => _scaffoldKey.currentState?.openDrawer(),
         onOpenTodos: () {
           changeScreen(1, closeDrawer: false);
         },
@@ -225,9 +222,10 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
-      // Obere App-Leiste
-      
-      appBar: AppBar(
+      key: _scaffoldKey,
+      // Extend the village behind the system status bar.
+      // Other screens keep the original city AppBar.
+      appBar: selectedIndex == 0 ? null : AppBar(
         // Titel des aktuellen Screens
         title: Text(
           titles[selectedIndex],
@@ -293,7 +291,7 @@ class _MainScreenState extends State<MainScreen> {
 
             ListTile(
               leading: const Icon(Icons.home),
-              title: const Text('Startseite'),
+              title: const Text('Dorfplatz'),
               selected: selectedIndex == 0,
               onTap: () => changeScreen(0),
             ),
