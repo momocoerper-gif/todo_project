@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../services/village_time_service.dart';
 import '../widgets/village_background.dart';
+import '../widgets/village_building.dart';
 import 'home_screen.dart';
 
 /// Village hub. Buildings can be positioned later in the same 941x1672
@@ -30,7 +30,7 @@ class VillageScreen extends StatefulWidget {
 class _VillageScreenState extends State<VillageScreen>
     with WidgetsBindingObserver {
   static const double _artWidth = 941;
-  static const double _artHeight = 1672;
+  static const double _artHeight = 3164;
 
   final ScrollController _scrollController = ScrollController();
   late VillageTime _currentTime;
@@ -58,6 +58,51 @@ class _VillageScreenState extends State<VillageScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _updateTime();
+  }
+
+  String _buildingImage(String building) {
+    final timeName = switch (_currentTime) {
+      VillageTime.morning => 'morning',
+      VillageTime.day => 'day',
+      VillageTime.evening => 'evening',
+      VillageTime.night => 'night',
+    };
+
+    final filename = building == 'announcement_board'
+        ? 'board'
+        : building;
+
+    return 'assets/images/village/buildings/'
+        '$building/${filename}_$timeName.png';
+  }
+  
+  Widget _positionBuilding({
+    required String building,
+    required String name,
+    required double x,
+    required double y,
+    required double width,
+    required double scale,
+    required double offsetX,
+    required VoidCallback onTap,
+  }) {
+    return Positioned(
+      left: offsetX + x * scale,
+      top: y * scale,
+      width: width * scale,
+      height: width * scale,
+      child: VillageBuilding(
+        imagePath: _buildingImage(building),
+        name: name,
+        onTap: onTap,
+      ),
+    );
+  }
+
+  void _comingSoon(String name) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$name wird bald eingerichtet!')),
+    );
   }
 
   Future<void> _openQuestbook() async {
@@ -183,9 +228,19 @@ class _VillageScreenState extends State<VillageScreen>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final worldWidth = constraints.maxWidth;
-        final artHeight = worldWidth * (_artHeight / _artWidth);
-        final worldHeight = math.max(artHeight, constraints.maxHeight);
+        final viewportWidth = constraints.maxWidth;
+        final viewportHeight = constraints.maxHeight;
+
+        // Cover the viewport on tall displays without distorting the artwork.
+        // On ordinary displays the complete illustration fits the width and
+        // stays vertically scrollable. On taller devices only the outer sides
+        // are cropped (the village still uses a single coordinate system).
+        final scale = viewportWidth / _artWidth;
+
+        final artWidth = _artWidth * scale;
+        final artHeight = _artHeight * scale;
+
+        final cropLeft = 0.0;
         final safeTop = MediaQuery.paddingOf(context).top;
 
         return Stack(
@@ -196,23 +251,120 @@ class _VillageScreenState extends State<VillageScreen>
               controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               child: SizedBox(
-                width: worldWidth,
-                height: worldHeight,
+                width: viewportWidth,
+                height: artHeight,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Keep the illustration's aspect ratio. Never crop it.
-                    // Short displays get a continuation color below the art.
-                    const ColoredBox(color: Color(0xFF577B45)),
+                    // The art covers the available height; never draw a
+                    // solid continuation strip beneath the landscape.
                     Positioned(
                       top: 0,
-                      left: 0,
-                      width: worldWidth,
+                      left: cropLeft,
+                      width: artWidth,
                       height: artHeight,
                       child: VillageBackground(time: _currentTime),
                     ),
-                    // Future buildings: place them at normalized positions
-                    // on this world canvas so they scroll with the village.
+                    // Buildings share the original artwork coordinates.
+                    // Horizontal crop, when needed, is applied consistently.
+                    // Gilde – Grundstück links
+                    _positionBuilding(
+                      building: 'guild',
+                      name: 'Abenteurergilde',
+                      x: 5,
+                      y: 300,
+                      width: 310,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: widget.onOpenTodos,
+                    ),
+
+                    // Home – oberes Grundstück
+                    _positionBuilding(
+                      building: 'home',
+                      name: 'Mein Zuhause',
+                      x: 307,
+                      y: 135,
+                      width: 336,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Dein Zuhause wird bald eingerichtet!',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    // Schatzkammer – Grundstück rechts
+                    _positionBuilding(
+                      building: 'treasury',
+                      name: 'Schatzkammer',
+                      x: 640,
+                      y: 305,
+                      width: 295,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: widget.onOpenFinance,
+                    ),
+
+                    // Announcement Board – unterhalb des Platzes
+                    _positionBuilding(
+                      building: 'announcement_board',
+                      name: 'Ankündigungstafel',
+                      x: 590,
+                      y: 1190,
+                      width: 200,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: widget.onOpenCalendar,
+                    ),
+
+                    // Abschnitt 2: Y wird um _artHeight nach unten verschoben.
+                    // Startpositionen; spaeter anhand eines Screenshots feinjustieren.
+                    _positionBuilding(
+                      building: 'plant_house',
+                      name: 'Pflanzenhaus',
+                      x: 35,
+                      y: 1490 + 285,
+                      width: 360,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: () => _comingSoon('Das Pflanzenhaus'),
+                    ),
+                    _positionBuilding(
+                      building: 'library',
+                      name: 'Bibliothek',
+                      x: 590,
+                      y: 1490 + 190,
+                      width: 360,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: () => _comingSoon('Die Bibliothek'),
+                    ),
+                    _positionBuilding(
+                      building: 'bard_wagon',
+                      name: 'Bardenwagen',
+                      x: 650,
+                      y: 1490 + 670,
+                      width: 230,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: () => _comingSoon('Der Bardenwagen'),
+                    ),
+                    _positionBuilding(
+                      building: 'tavern',
+                      name: 'Taverne',
+                      x: 100,
+                      y: 1490 + 865,
+                      width: 360,
+                      scale: scale,
+                      offsetX: cropLeft,
+                      onTap: () => _comingSoon('Die Taverne'),
+                    ),
                   ],
                 ),
               ),
